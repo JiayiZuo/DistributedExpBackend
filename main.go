@@ -48,10 +48,30 @@ func (k *KVStore) GetAll() map[string]string {
 	return result
 }
 
+// 添加CORS中间件
+func enableCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// 设置CORS头
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		// 处理预检请求
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// 调用下一个处理程序
+		next(w, r)
+	}
+}
+
 func main() {
 	store := NewKVStore()
 
-	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
+	// 使用enableCORS包装每个处理函数
+	http.HandleFunc("/get", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -67,9 +87,9 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]string{"key": key, "value": value})
-	})
+	}))
 
-	http.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/set", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -82,9 +102,9 @@ func main() {
 		}
 		store.Set(key, value)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "key": key})
-	})
+	}))
 
-	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/delete", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -96,16 +116,16 @@ func main() {
 		}
 		store.Delete(key)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "key": key})
-	})
+	}))
 
-	http.HandleFunc("/all", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/all", enableCORS(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		data := store.GetAll()
 		json.NewEncoder(w).Encode(data)
-	})
+	}))
 
 	fmt.Println("Key-Value store server started at :3000")
 	log.Fatal(http.ListenAndServe(":3000", nil))
