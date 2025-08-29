@@ -311,7 +311,7 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <node-id> <raft-address> [join-address]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s <node-id> <raft-address> [http-port] [join-address]\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -323,12 +323,16 @@ func main() {
 		log.Fatalf("failed to open store: %s", err.Error())
 	}
 
-	// If join was specified, make the join request.
+	// 设置默认 HTTP 端口
+	httpPort := "3000"
+	joinAddr := ""
+
+	// 解析可选参数
 	if len(os.Args) >= 4 {
-		joinAddr := os.Args[3]
-		if err := store.Join(nodeID, joinAddr); err != nil {
-			log.Fatalf("failed to join node at %s: %s", joinAddr, err.Error())
-		}
+		httpPort = os.Args[3]
+	}
+	if len(os.Args) >= 5 {
+		joinAddr = os.Args[4]
 	}
 
 	// 使用CORS中间件包装所有HTTP处理函数
@@ -415,6 +419,7 @@ func main() {
 		json.NewEncoder(w).Encode(stats)
 	}))
 
-	fmt.Printf("Key-Value store server started at :3000 (Raft: %s)\n", raftAddr)
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	fmt.Printf("Key-Value store server started at :%s (Raft: %s)\n", httpPort, raftAddr)
+	fmt.Printf("Join Addr is: %s", joinAddr)
+	log.Fatal(http.ListenAndServe(":"+httpPort, nil))
 }
